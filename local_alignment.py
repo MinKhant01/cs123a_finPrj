@@ -1,7 +1,10 @@
+import math
 import argparse
+import numpy as np
+import time
+import resource
 from Bio.Data.IUPACData import protein_letters
 from Bio.Align import substitution_matrices
-import numpy as np
 
 # BLOSUM matrices
 BLOSUM45 = substitution_matrices.load("BLOSUM45")
@@ -79,7 +82,7 @@ def smith_waterman(seq1, seq2, sub_matrix, gap_penalty=-5):
             j -= 1
         else:
             break
-    return align1, align2, max_score, H
+    return align1, align2, max_score, H, max_pos, (i, j)
 
 def main():
     parser = argparse.ArgumentParser(description="Smith-Waterman local alignment using a BLOSUM matrix.")
@@ -117,14 +120,57 @@ def main():
         print(row)
 
 
-    align1, align2, score, dp_matrix = smith_waterman(args.seq1, args.seq2, sub_matrix, gap_penalty)
+    # Record the start wall-clock time.
+    start_time = time.time()
 
+    align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(args.seq1, args.seq2, sub_matrix, gap_penalty)
+
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    usage = resource.getrusage(resource.RUSAGE_SELF)
+
+    # Percentage Identity: count of positions with identical amino acids (ignoring gaps) relative to alignment length.
+    identity_matches = sum(1 for a, b in zip(align1, align2) if a == b and a != "-")
+    percent_identity = (identity_matches / len(align1)) * 100 if align1 else 0
+
+    # Coverage: proportion of each sequence that is aligned.
+    # Since the traceback stops at the cell where H == 0, the aligned segment spans from start_pos to max_pos.
+    coverage_seq1 = ((max_pos[0] - start_pos[0]) / len(args.seq1)) * 100
+    coverage_seq2 = ((max_pos[1] - start_pos[1]) / len(args.seq2)) * 100
+
+    # Gap Metrics: count and percentage of gaps in each aligned sequence.
+    gaps_seq1 = align1.count("-")
+    gaps_seq2 = align2.count("-")
+    gap_percentage_seq1 = (gaps_seq1 / len(align1)) * 100 if align1 else 0
+    gap_percentage_seq2 = (gaps_seq2 / len(align2)) * 100 if align2 else 0
+
+    # Estimate the E-value using placeholder λ and K constants.
+    # E-value = K * m * n * exp(-λ * score)
+    # m and n are the lengths of the two sequences.
+    K = 0.1         # Placeholder constant; requires calibration.
+    lambda_val = 0.267  # Placeholder constant; requires calibration.
+    m = len(args.seq1)
+    n = len(args.seq2)
+    e_value = K * m * n * math.exp(-lambda_val * score)
+
+    # Output the alignment results
     print(f"Alignment Score: {score}")
     print(f"Aligned Sequence 1: {align1}")
     print(f"Aligned Sequence 2: {align2}")
     print("DP Matrix:")
     for row in dp_matrix:
         print(row)
+    print(f"Percentage Identity: {percent_identity:.2f}%")
+    print(f"Coverage - Sequence 1: {coverage_seq1:.2f}%, Sequence 2: {coverage_seq2:.2f}%")
+    print(f"Gap Metrics - Sequence 1: {gaps_seq1} gaps ({gap_percentage_seq1:.2f}%), Sequence 2: {gaps_seq2} gaps ({gap_percentage_seq2:.2f}%)")
+    print(f"Estimated E-value: {e_value:.4e}")
+
+
+    # Output the benchmark results.
+    print("\nBenchmark Results:")
+    print(f"Elapsed (wall-clock) Time: {elapsed_time:.4f} seconds")
+    print(f"CPU Time: User {usage.ru_utime:.4f} sec, System {usage.ru_stime:.4f} sec")
+    print(f"Maximum Memory Usage: {usage.ru_maxrss} KB")
 
 if __name__ == "__main__":
     main()
