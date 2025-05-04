@@ -4,6 +4,8 @@ import numpy as np
 import time
 import resource
 import sys
+import os
+import csv
 from Bio.Data.IUPACData import protein_letters
 from Bio.Align import substitution_matrices
 
@@ -109,14 +111,6 @@ def main():
     args = parser.parse_args()
 
     try:
-        log_file = open(args.log_file, "w")
-    except Exception as e:
-        sys.stderr.write(f"Error: unable to open log file {args.log_file}.")
-        sys.exit(1)
-    sys.stdout = log_file
-    sys.stderr = log_file
-
-    try:
         seq1 = parse_fasta(args.file1)
     except Exception as e:
         print(f"Error parsing FASTA file {args.file1}: {e}")
@@ -150,18 +144,24 @@ def main():
             sub_matrix = BLOSUM80
         case _:
             print(f"Error: {matrix_input} is currently not a supported BLOSUM matrix.")
+            sys.exit(1)
     
     context_matrix = get_context_matrix(seq1, seq2, sub_matrix)
-    print("Context Scoring Matrix:")
-    for row in context_matrix:
-        print(row)
 
+    # Derive an output base name from file1 (without extension)
+    output_base = os.path.splitext(os.path.basename(args.log_file))[0]
+    output_dir = output_base + "_output"
+    os.makedirs(output_dir, exist_ok=True)
+
+    context_csv_filename = os.path.join(output_dir, f"{output_base}_contextMatrix.csv")
+    with open(context_csv_filename, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        for row in context_matrix:
+            writer.writerow(row)
 
     # Record the start wall-clock time.
     start_time = time.time()
-
     align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(seq1, seq2, sub_matrix, gap_penalty)
-
     end_time = time.time()
     elapsed_time = end_time - start_time
     usage = resource.getrusage(resource.RUSAGE_SELF)
@@ -189,30 +189,37 @@ def main():
     else:
         K = 0.128           # default gapped value
         lambda_val = 0.311  # default gapped value
-
-    # Estimate the E-value using well-studied, published constants.
     m = len(seq1)
     n = len(seq2)
     e_value = K * m * n * math.exp(-lambda_val * score)
 
-    # Output the alignment results
-    print(f"Alignment Score: {score}")
-    print(f"Aligned Sequence 1: {align1}")
-    print(f"Aligned Sequence 2: {align2}")
-    print("DP Matrix:")
-    for row in dp_matrix:
-        print(row)
-    print(f"Percentage Identity: {percent_identity:.2f}%")
-    print(f"Coverage - Sequence 1: {coverage_seq1:.2f}%, Sequence 2: {coverage_seq2:.2f}%")
-    print(f"Gap Metrics - Sequence 1: {gaps_seq1} gaps ({gap_percentage_seq1:.2f}%), Sequence 2: {gaps_seq2} gaps ({gap_percentage_seq2:.2f}%)")
-    print(f"Estimated E-value: {e_value:.4e}")
+   # Write out the DP matrix as a CSV file.
+    dp_csv_filename = os.path.join(output_dir, f"{output_base}_DPMatrix.csv")
+    with open(dp_csv_filename, "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        for row in dp_matrix:
+            writer.writerow(row)
 
-
-    # Output the benchmark results.
-    print("\nBenchmark Results:")
-    print(f"Elapsed (wall-clock) Time: {elapsed_time:.4f} seconds")
-    print(f"CPU Time: User {usage.ru_utime:.4f} sec, System {usage.ru_stime:.4f} sec")
-    print(f"Maximum Memory Usage: {usage.ru_maxrss} KB")
+    # Write out the metrics (alignment results and benchmark).
+    metrics_filename = os.path.join(output_dir, f"{output_base}_metrics.txt")
+    with open(metrics_filename, "w") as f:
+        # Alignment results
+        f.write(f"Alignment Score: {score}\n")
+        f.write(f"Aligned Sequence 1: {align1}\n")
+        f.write(f"Aligned Sequence 2: {align2}\n")
+        f.write(f"Percentage Identity: {percent_identity:.2f}%\n")
+        f.write(f"Coverage - Sequence 1: {coverage_seq1:.2f}%, Sequence 2: {coverage_seq2:.2f}%\n")
+        f.write(f"Gap Metrics - Sequence 1: {gaps_seq1} gaps ({gap_percentage_seq1:.2f}%), ")
+        f.write(f"Sequence 2: {gaps_seq2} gaps ({gap_percentage_seq2:.2f}%)\n")
+        f.write(f"Estimated E-value: {e_value:.4e}\n\n")
+        # Benchmark results
+        f.write("Benchmark Results:\n")
+        f.write(f"Elapsed (wall-clock) Time: {elapsed_time:.4f} seconds\n")
+        f.write(f"CPU Time: User {usage.ru_utime:.4f} sec, System {usage.ru_stime:.4f} sec\n")
+        f.write(f"Maximum Memory Usage: {usage.ru_maxrss} KB\n")
+    
+    # Also print a confirmation message to the terminal.
+    print(f"Files generated:\n {context_csv_filename}\n {dp_csv_filename}\n {metrics_filename}")
 
 if __name__ == "__main__":
     main()

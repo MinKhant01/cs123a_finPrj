@@ -1,0 +1,12 @@
+Alignment Score: 96
+Aligned Sequence 1: ACDEFGHIKLMNPQRSTVWY
+Aligned Sequence 2: ACD-FGHIKLMNPQRS-VWY
+Percentage Identity: 90.00%
+Coverage - Sequence 1: 100.00%, Sequence 2: 100.00%
+Gap Metrics - Sequence 1: 0 gaps (0.00%), Sequence 2: 2 gaps (10.00%)
+Estimated E-value: 4.9799e-12
+
+Benchmark Results:
+Elapsed (wall-clock) Time: 0.0073 seconds
+CPU Time: User 0.0697 sec, System 0.0150 sec
+Maximum Memory Usage: 26574848 KB
