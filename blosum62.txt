@@ -14559,6 +14559,6 @@ Gap Metrics - Sequence 1: 0 gaps (0.00%), Sequence 2: 0 gaps (0.00%)
 Estimated E-value: 5.2659e-202
 
 Benchmark Results:
-Elapsed (wall-clock) Time: 2.3088 seconds
-CPU Time: User 4.6282 sec, System 0.0200 sec
-Maximum Memory Usage: 33308672 KB
+Elapsed (wall-clock) Time: 2.3389 seconds
+CPU Time: User 4.6828 sec, System 0.0333 sec
+Maximum Memory Usage: 32980992 KB

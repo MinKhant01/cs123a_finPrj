@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import time
 import resource
+import sys
 from Bio.Data.IUPACData import protein_letters
 from Bio.Align import substitution_matrices
 
@@ -11,6 +12,19 @@ BLOSUM45 = substitution_matrices.load("BLOSUM45")
 BLOSUM50 = substitution_matrices.load("BLOSUM50")
 BLOSUM62 = substitution_matrices.load("BLOSUM62")
 BLOSUM80 = substitution_matrices.load("BLOSUM80")
+
+def parse_fasta(file_path):
+    try:
+        with open(file_path, "r") as file:
+            lines = file.read().splitlines()
+    except Exception as e:
+        raise Exception(f"Error reading file {file_path}: {e}")
+    
+    if not lines or not lines[0].startswith(">"):
+        raise Exception(f"File {file_path} does not contain a valid FASTA format.")
+    
+    sequence = "".join(line.strip() for line in lines[1:] if line.strip() and not line.startswith(">"))
+    return sequence
 
 def validate_sequence(sequence):
     seq = sequence.upper()
@@ -86,17 +100,39 @@ def smith_waterman(seq1, seq2, sub_matrix, gap_penalty=-5):
 
 def main():
     parser = argparse.ArgumentParser(description="Smith-Waterman local alignment using a BLOSUM matrix.")
-    parser.add_argument("seq1", type=str, help="protein sequence 1")
-    parser.add_argument("seq2", type=str, help="protein sequence 2")
-    parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM30", "BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80"], help="BLOSUM matrix family to use (default: BLOSUM62)")
+    parser.add_argument("file1", type=str, help="FASTA file containing protein sequence 1")
+    parser.add_argument("file2", type=str, help="FASTA file containing protein sequence 2")
+    parser.add_argument("log_file", type=str, help="log file to record the output")
+    parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80"], help="BLOSUM matrix family to use (default: BLOSUM62)")
     parser.add_argument("--gap_penalty", type=int, default=-5, help="Gap penalty (default: -5)")
     args = parser.parse_args()
 
-    if not validate_sequence(args.seq1):
-        print(f"Error: Sequence 1 - {args.seq1} - is not a valid protein sequence.")
+    try:
+        log_file = open(args.log_file, "w")
+    except Exception as e:
+        sys.stderr.write(f"Error: unable to open log file {args.log_file}.")
+        sys.exit(1)
+    sys.stdout = log_file
+    sys.stderr = log_file
+
+    try:
+        seq1 = parse_fasta(args.file1)
+    except Exception as e:
+        print(f"Error parsing FASTA file {args.file1}: {e}")
+        sys.exit(1)
+    
+    try:
+        seq2 = parse_fasta(args.file2)
+    except Exception as e:
+        print(f"Error parsing FASTA file {args.file2}: {e}")
+        sys.exit(1)
+    
+
+    if not validate_sequence(seq1):
+        print(f"Error: Sequence 1 - {seq1} - is not a valid protein sequence.")
         return
-    if not validate_sequence(args.seq2):
-        print(f"Error: Sequence 2 - {args.seq2} - is not a valid protein sequence.")
+    if not validate_sequence(seq2):
+        print(f"Error: Sequence 2 - {seq2} - is not a valid protein sequence.")
         return
 
     matrix_input = args.matrix.upper()
@@ -114,7 +150,7 @@ def main():
         case _:
             print(f"Error: {matrix_input} is currently not a supported BLOSUM matrix.")
     
-    context_matrix = get_substitution_matrix(args.seq1, args.seq2, sub_matrix)
+    context_matrix = get_substitution_matrix(seq1, seq2, sub_matrix)
     print("Context Scoring Matrix:")
     for row in context_matrix:
         print(row)
@@ -123,7 +159,7 @@ def main():
     # Record the start wall-clock time.
     start_time = time.time()
 
-    align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(args.seq1, args.seq2, sub_matrix, gap_penalty)
+    align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(seq1, seq2, sub_matrix, gap_penalty)
 
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -135,8 +171,8 @@ def main():
 
     # Coverage: proportion of each sequence that is aligned.
     # Since the traceback stops at the cell where H == 0, the aligned segment spans from start_pos to max_pos.
-    coverage_seq1 = ((max_pos[0] - start_pos[0]) / len(args.seq1)) * 100
-    coverage_seq2 = ((max_pos[1] - start_pos[1]) / len(args.seq2)) * 100
+    coverage_seq1 = ((max_pos[0] - start_pos[0]) / len(seq1)) * 100
+    coverage_seq2 = ((max_pos[1] - start_pos[1]) / len(seq2)) * 100
 
     # Gap Metrics: count and percentage of gaps in each aligned sequence.
     gaps_seq1 = align1.count("-")
@@ -147,10 +183,10 @@ def main():
     # Estimate the E-value using placeholder λ and K constants.
     # E-value = K * m * n * exp(-λ * score)
     # m and n are the lengths of the two sequences.
-    K = 0.1         # Placeholder constant; requires calibration.
+    K = 0.1             # Placeholder constant; requires calibration.
     lambda_val = 0.267  # Placeholder constant; requires calibration.
-    m = len(args.seq1)
-    n = len(args.seq2)
+    m = len(seq1)
+    n = len(seq2)
     e_value = K * m * n * math.exp(-lambda_val * score)
 
     # Output the alignment results
