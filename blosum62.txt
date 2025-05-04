@@ -14556,9 +14556,9 @@ DP Matrix:
 Percentage Identity: 99.42%
 Coverage - Sequence 1: 100.00%, Sequence 2: 100.00%
 Gap Metrics - Sequence 1: 0 gaps (0.00%), Sequence 2: 0 gaps (0.00%)
-Estimated E-value: 5.2659e-202
+Estimated E-value: 9.6988e-236
 
 Benchmark Results:
-Elapsed (wall-clock) Time: 2.3389 seconds
-CPU Time: User 4.6828 sec, System 0.0333 sec
-Maximum Memory Usage: 32980992 KB
+Elapsed (wall-clock) Time: 2.3566 seconds
+CPU Time: User 4.7258 sec, System 0.0291 sec
+Maximum Memory Usage: 33947648 KB

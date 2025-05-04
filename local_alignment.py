@@ -105,6 +105,7 @@ def main():
     parser.add_argument("log_file", type=str, help="log file to record the output")
     parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80"], help="BLOSUM matrix family to use (default: BLOSUM62)")
     parser.add_argument("--gap_penalty", type=int, default=-5, help="Gap penalty (default: -5)")
+    parser.add_argument("--ungapped", action="store_true", default=False , help="Use ungapped alignment (default: False)")
     args = parser.parse_args()
 
     try:
@@ -180,11 +181,16 @@ def main():
     gap_percentage_seq1 = (gaps_seq1 / len(align1)) * 100 if align1 else 0
     gap_percentage_seq2 = (gaps_seq2 / len(align2)) * 100 if align2 else 0
 
-    # Estimate the E-value using placeholder λ and K constants.
+    # Estimate the E-value
     # E-value = K * m * n * exp(-λ * score)
-    # m and n are the lengths of the two sequences.
-    K = 0.1             # Placeholder constant; requires calibration.
-    lambda_val = 0.267  # Placeholder constant; requires calibration.
+    if args.ungapped:
+        K = 0.041           # default ungapped value
+        lambda_val = 0.267  # default ungapped value
+    else:
+        K = 0.128           # default gapped value
+        lambda_val = 0.311  # default gapped value
+
+    # Estimate the E-value using well-studied, published constants.
     m = len(seq1)
     n = len(seq2)
     e_value = K * m * n * math.exp(-lambda_val * score)
