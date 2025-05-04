@@ -43,7 +43,7 @@ def get_substitution_score(res1, res2, matrix):
     else:
         return -1
     
-def get_substitution_matrix(seq1, seq2, matrix):
+def get_context_matrix(seq1, seq2, matrix):
     rows, cols = len(seq1), len(seq2)
     score_matrix = [[0 for j in range(cols)] for i in range(rows)]
     for i in range(rows):
@@ -150,7 +150,7 @@ def main():
         case _:
             print(f"Error: {matrix_input} is currently not a supported BLOSUM matrix.")
     
-    context_matrix = get_substitution_matrix(seq1, seq2, sub_matrix)
+    context_matrix = get_context_matrix(seq1, seq2, sub_matrix)
     print("Context Scoring Matrix:")
     for row in context_matrix:
         print(row)
