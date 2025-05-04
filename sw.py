@@ -177,7 +177,7 @@ def main():
     parser = argparse.ArgumentParser(description="Smith-Waterman local alignment using a BLOSUM matrix.")
     parser.add_argument("file1", type=str, help="FASTA file containing protein sequence 1")
     parser.add_argument("file2", type=str, help="FASTA file containing protein sequence 2")
-    parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80", "ALL"], help="BLOSUM matrix family to use (default: BLOSUM62)")
+    parser.add_argument("--matrix", type=lambda s: s.upper(), default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80", "ALL"], help="BLOSUM matrix family to use (default: BLOSUM62)")
     parser.add_argument("--gap_penalty", type=int, default=-5, help="Gap penalty (default: -5)")
     parser.add_argument("--ungapped", action="store_true", default=False , help="Use ungapped alignment (default: False)")
     args = parser.parse_args()
@@ -209,6 +209,16 @@ def main():
     except Exception as e:
         print(f"Error parsing FASTA file {args.file2}: {e}")
         sys.exit(1)
+
+    # check if the sequences are empty
+    if not seq1 or not seq2:
+        print(f"Error: One or both sequences are empty.")
+        sys.exit(1)
+
+    # check if the sequences are longer than 50 amino acids
+    if len(seq1) < 50 or len(seq2) < 50:
+        print(f"Error: One or both sequences are shorter than 50 amino acids.")
+        sys.exit(1)
     
     # validate the sequences
     if not validate_sequence(seq1):
@@ -219,7 +229,7 @@ def main():
         return
     
     gap_penalty = args.gap_penalty
-    matrix_input = args.matrix.upper()
+    matrix_input = args.matrix
 
     # Check if the user wants to run all matrices or a specific one
     if matrix_input not in ["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80", "ALL"]:
