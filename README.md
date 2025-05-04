@@ -1,5 +1,4 @@
-# Exploring Pairwise Local Alignment of Amino Acid Sequences through Python Development Utilizing Blocks Substitution Matrices from BioPython 1.85
-
+# Exploring Pairwise Local Alignment of Protein Sequences Using Smith-Waterman Algorithm and BLOSUMs
 ## Authors
 - Brioso, Ryuji
 - Khant, Min Thwin
