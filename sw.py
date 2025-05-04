@@ -104,8 +104,7 @@ def main():
     parser = argparse.ArgumentParser(description="Smith-Waterman local alignment using a BLOSUM matrix.")
     parser.add_argument("file1", type=str, help="FASTA file containing protein sequence 1")
     parser.add_argument("file2", type=str, help="FASTA file containing protein sequence 2")
-    parser.add_argument("log_file", type=str, help="log file to record the output")
-    parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80"], help="BLOSUM matrix family to use (default: BLOSUM62)")
+    parser.add_argument("--matrix", type=str, default="BLOSUM62", choices=["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80", "ALL"], help="BLOSUM matrix family to use (default: BLOSUM62)")
     parser.add_argument("--gap_penalty", type=int, default=-5, help="Gap penalty (default: -5)")
     parser.add_argument("--ungapped", action="store_true", default=False , help="Use ungapped alignment (default: False)")
     args = parser.parse_args()
@@ -130,96 +129,107 @@ def main():
         print(f"Error: Sequence 2 - {seq2} - is not a valid protein sequence.")
         return
 
-    matrix_input = args.matrix.upper()
     gap_penalty = args.gap_penalty
+    matrix_input = args.matrix.upper()
 
-    match matrix_input:
-        case "BLOSUM45":
-            sub_matrix = BLOSUM45
-        case "BLOSUM50":
-            sub_matrix = BLOSUM50
-        case "BLOSUM62":
-            sub_matrix = BLOSUM62
-        case "BLOSUM80":
-            sub_matrix = BLOSUM80
-        case _:
-            print(f"Error: {matrix_input} is currently not a supported BLOSUM matrix.")
-            sys.exit(1)
-    
-    context_matrix = get_context_matrix(seq1, seq2, sub_matrix)
-
-    # Derive an output base name from file1 (without extension)
-    output_base = os.path.splitext(os.path.basename(args.log_file))[0]
-    output_dir = output_base + "_output"
-    os.makedirs(output_dir, exist_ok=True)
-
-    context_csv_filename = os.path.join(output_dir, f"{output_base}_contextMatrix.csv")
-    with open(context_csv_filename, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-        for row in context_matrix:
-            writer.writerow(row)
-
-    # Record the start wall-clock time.
-    start_time = time.time()
-    align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(seq1, seq2, sub_matrix, gap_penalty)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    usage = resource.getrusage(resource.RUSAGE_SELF)
-
-    # Percentage Identity: count of positions with identical amino acids (ignoring gaps) relative to alignment length.
-    identity_matches = sum(1 for a, b in zip(align1, align2) if a == b and a != "-")
-    percent_identity = (identity_matches / len(align1)) * 100 if align1 else 0
-
-    # Coverage: proportion of each sequence that is aligned.
-    # Since the traceback stops at the cell where H == 0, the aligned segment spans from start_pos to max_pos.
-    coverage_seq1 = ((max_pos[0] - start_pos[0]) / len(seq1)) * 100
-    coverage_seq2 = ((max_pos[1] - start_pos[1]) / len(seq2)) * 100
-
-    # Gap Metrics: count and percentage of gaps in each aligned sequence.
-    gaps_seq1 = align1.count("-")
-    gaps_seq2 = align2.count("-")
-    gap_percentage_seq1 = (gaps_seq1 / len(align1)) * 100 if align1 else 0
-    gap_percentage_seq2 = (gaps_seq2 / len(align2)) * 100 if align2 else 0
-
-    # Estimate the E-value
-    # E-value = K * m * n * exp(-λ * score)
-    if args.ungapped:
-        K = 0.041           # default ungapped value
-        lambda_val = 0.267  # default ungapped value
+    if matrix_input == "ALL":
+        matrices_to_run = ["BLOSUM45", "BLOSUM50", "BLOSUM62", "BLOSUM80"]
     else:
-        K = 0.128           # default gapped value
-        lambda_val = 0.311  # default gapped value
-    m = len(seq1)
-    n = len(seq2)
-    e_value = K * m * n * math.exp(-lambda_val * score)
+        matrices_to_run = [matrix_input]
 
-   # Write out the DP matrix as a CSV file.
-    dp_csv_filename = os.path.join(output_dir, f"{output_base}_DPMatrix.csv")
-    with open(dp_csv_filename, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-        for row in dp_matrix:
-            writer.writerow(row)
-
-    # Write out the metrics (alignment results and benchmark).
-    metrics_filename = os.path.join(output_dir, f"{output_base}_metrics.txt")
-    with open(metrics_filename, "w") as f:
-        # Alignment results
-        f.write(f"Alignment Score: {score}\n")
-        f.write(f"Aligned Sequence 1: {align1}\n")
-        f.write(f"Aligned Sequence 2: {align2}\n")
-        f.write(f"Percentage Identity: {percent_identity:.2f}%\n")
-        f.write(f"Coverage - Sequence 1: {coverage_seq1:.2f}%, Sequence 2: {coverage_seq2:.2f}%\n")
-        f.write(f"Gap Metrics - Sequence 1: {gaps_seq1} gaps ({gap_percentage_seq1:.2f}%), ")
-        f.write(f"Sequence 2: {gaps_seq2} gaps ({gap_percentage_seq2:.2f}%)\n")
-        f.write(f"Estimated E-value: {e_value:.4e}\n\n")
-        # Benchmark results
-        f.write("Benchmark Results:\n")
-        f.write(f"Elapsed (wall-clock) Time: {elapsed_time:.4f} seconds\n")
-        f.write(f"CPU Time: User {usage.ru_utime:.4f} sec, System {usage.ru_stime:.4f} sec\n")
-        f.write(f"Maximum Memory Usage: {usage.ru_maxrss} KB\n")
+    for matrix_input in matrices_to_run:
+        match matrix_input:
+            case "BLOSUM50":
+                sub_matrix = BLOSUM50
+            case "BLOSUM62":
+                sub_matrix = BLOSUM62
+            case "BLOSUM80":
+                sub_matrix = BLOSUM80
+            case "BLOSUM45":
+                sub_matrix = BLOSUM45
+            case _:
+                print(f"Error: {matrix_input} is currently not a supported BLOSUM matrix.")
+                continue
     
-    # Also print a confirmation message to the terminal.
-    print(f"Files generated:\n {context_csv_filename}\n {dp_csv_filename}\n {metrics_filename}")
+        context_matrix = get_context_matrix(seq1, seq2, sub_matrix)
+
+        # extract base namesfrom file paths
+        file1_base = os.path.splitext(os.path.basename(args.file1))[0]
+        file2_base = os.path.splitext(os.path.basename(args.file2))[0]
+
+        # sort bases alphabetically for consistent ordering
+        bases = sorted([file1_base, file2_base])
+        output_base = f"{bases[0]}-{bases[1]}"
+        output_dir = f"{output_base}_{matrix_input}_output"
+        os.makedirs(output_dir, exist_ok=True)
+
+        context_csv_filename = os.path.join(output_dir, f"{output_base}_{matrix_input}_contextMatrix.csv")
+        with open(context_csv_filename, "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            for row in context_matrix:
+                writer.writerow(row)
+
+        # Record the start wall-clock time.
+        start_time = time.time()
+        align1, align2, score, dp_matrix, max_pos, start_pos = smith_waterman(seq1, seq2, sub_matrix, gap_penalty)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        usage = resource.getrusage(resource.RUSAGE_SELF)
+
+        # Percentage Identity: count of positions with identical amino acids (ignoring gaps) relative to alignment length.
+        identity_matches = sum(1 for a, b in zip(align1, align2) if a == b and a != "-")
+        percent_identity = (identity_matches / len(align1)) * 100 if align1 else 0
+
+        # Coverage: proportion of each sequence that is aligned.
+        # Since the traceback stops at the cell where H == 0, the aligned segment spans from start_pos to max_pos.
+        coverage_seq1 = ((max_pos[0] - start_pos[0]) / len(seq1)) * 100
+        coverage_seq2 = ((max_pos[1] - start_pos[1]) / len(seq2)) * 100
+
+        # Gap Metrics: count and percentage of gaps in each aligned sequence.
+        gaps_seq1 = align1.count("-")
+        gaps_seq2 = align2.count("-")
+        gap_percentage_seq1 = (gaps_seq1 / len(align1)) * 100 if align1 else 0
+        gap_percentage_seq2 = (gaps_seq2 / len(align2)) * 100 if align2 else 0
+
+        # Estimate the E-value
+        # E-value = K * m * n * exp(-λ * score)
+        if args.ungapped:
+            K = 0.041           # default ungapped value
+            lambda_val = 0.267  # default ungapped value
+        else:
+            K = 0.128           # default gapped value
+            lambda_val = 0.311  # default gapped value
+        m = len(seq1)
+        n = len(seq2)
+        e_value = K * m * n * math.exp(-lambda_val * score)
+
+    # Write out the DP matrix as a CSV file.
+        dp_csv_filename = os.path.join(output_dir, f"{output_base}_{matrix_input}_DPMatrix.csv")
+        with open(dp_csv_filename, "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            for row in dp_matrix:
+                writer.writerow(row)
+
+        # Write out the metrics (alignment results and benchmark).
+        metrics_filename = os.path.join(output_dir, f"{output_base}_{matrix_input}_metrics.txt")
+        with open(metrics_filename, "w") as f:
+            # Alignment results
+            f.write(f"Alignment Score: {score}\n")
+            f.write(f"Aligned Sequence 1: {align1}\n")
+            f.write(f"Aligned Sequence 2: {align2}\n")
+            f.write(f"Percentage Identity: {percent_identity:.2f}%\n")
+            f.write(f"Coverage - Sequence 1: {coverage_seq1:.2f}%, Sequence 2: {coverage_seq2:.2f}%\n")
+            f.write(f"Gap Metrics - Sequence 1: {gaps_seq1} gaps ({gap_percentage_seq1:.2f}%), ")
+            f.write(f"Sequence 2: {gaps_seq2} gaps ({gap_percentage_seq2:.2f}%)\n")
+            f.write(f"Estimated E-value: {e_value:.4e}\n\n")
+            # Benchmark results
+            f.write("Benchmark Results:\n")
+            f.write(f"Elapsed (wall-clock) Time: {elapsed_time:.4f} seconds\n")
+            f.write(f"CPU Time: User {usage.ru_utime:.4f} sec, System {usage.ru_stime:.4f} sec\n")
+            f.write(f"Maximum Memory Usage: {usage.ru_maxrss} KB\n")
+        
+        # Also print a confirmation message to the terminal.
+        print(f"Files generated:\n {context_csv_filename}\n {dp_csv_filename}\n {metrics_filename}")
 
 if __name__ == "__main__":
     main()
