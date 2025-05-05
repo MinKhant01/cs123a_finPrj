@@ -1,0 +1,12 @@
+Alignment Score: 400
+Aligned Sequence 1: MQNEEGKMVDLYVPRKCSATNRIITAKDHASVQINIGHLDENGMYDGRFTTFALSGFVRAQGDADSSLDRLWQKKRAEIKQ
+Aligned Sequence 2: MQNEEGQMVDLYVPRKCSATNRIITAKDHASVQINIGHVDENGLYDGRFTTFALSGFIRAQGDADSALDRLWQKRKAEVKQ
+Percentage Identity: 90.12%
+Coverage - Sequence 1: 100.00%, Sequence 2: 98.78%
+Gap Metrics - Sequence 1: 0 gaps (0.00%), Sequence 2: 0 gaps (0.00%)
+Estimated E-value: 8.0034e-52
+
+Benchmark Results:
+Elapsed (wall-clock) Time: 0.1243 seconds
+CPU Time: User 0.7757 sec, System 0.0179 sec
+Maximum Memory Usage: 27885568 KB

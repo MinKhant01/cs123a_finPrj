@@ -266,7 +266,12 @@ def main():
         # sort bases alphabetically for consistent ordering
         bases = sorted([file1_base, file2_base])
         output_base = f"{bases[0]}-{bases[1]}"
-        output_dir = f"{output_base}_{matrix_input}_output"
+
+        dest_output_dir = "OUTPUT"
+        if not os.path.exists(dest_output_dir):
+            os.makedirs(dest_output_dir)
+
+        output_dir = os.path.join(dest_output_dir, f"{output_base}_{matrix_input}_output")
         os.makedirs(output_dir, exist_ok=True)
 
         # write out the context matrix as a CSV file
